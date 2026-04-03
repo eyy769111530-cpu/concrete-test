@@ -217,9 +217,15 @@ function fmtFull(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2
 function todayStr(){return fmtFull(new Date())}
 function esc(s){var e=document.createElement('span');e.textContent=s;return e.innerHTML}
 function stepsTotal(st){return(st||[]).reduce(function(s,x){return s+(parseInt(x.days)||0)},0)}
+function skipWeekend(d){
+  var dt=new Date(d);var day=dt.getDay();
+  if(day===6)dt.setDate(dt.getDate()+2); // 周六→周一
+  if(day===0)dt.setDate(dt.getDate()+1); // 周日→周一
+  return dt;
+}
 function calcDates(castDate,age,steps){
-  var ageDate=addDays(castDate,age),cur=new Date(ageDate);
-  var sd=(steps||[]).map(function(st){var start=new Date(cur),days=parseInt(st.days)||0;cur=addDays(fmtFull(start),days);return{name:st.name,days:days,start:start,end:new Date(cur)}});
+  var ageDate=skipWeekend(addDays(castDate,age)),cur=new Date(ageDate);
+  var sd=(steps||[]).map(function(st){var start=new Date(cur),days=parseInt(st.days)||0;cur=skipWeekend(addDays(fmtFull(start),days));return{name:st.name,days:days,start:start,end:new Date(cur)}});
   return{ageDate:ageDate,testDate:cur,stepDates:sd};
 }
 function dateStatus(td){
