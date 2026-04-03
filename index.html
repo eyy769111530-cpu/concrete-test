@@ -67,7 +67,7 @@ button.dash-card{background:var(--card);border-radius:10px;padding:12px 14px;mar
 .record-ages{display:flex;flex-wrap:wrap;gap:6px}
 .age-tag{padding:6px 10px;border-radius:8px;text-align:center;font-size:12px;min-width:70px}
 .age-tag .label{color:var(--gray)}.age-tag .date{font-weight:600;margin-top:1px}
-.age-tag.overdue{background:#ffe0e0}.age-tag.today{background:#fff3cd}.age-tag.soon{background:#e8f4fd}.age-tag.normal{background:#f2f2f7}
+.age-tag.overdue{background:#ffe0e0}.age-tag.today{background:#fff3cd}.age-tag.soon{background:#e8f4fd}.age-tag.normal{background:#f2f2f7}.age-tag.done{background:#d4edda}
 .empty-msg{text-align:center;color:var(--gray);padding:40px 16px;font-size:15px}
 .search-bar{margin:16px 16px 0}
 .search-bar input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;font-size:15px;background:var(--card);-webkit-appearance:none}
@@ -437,14 +437,25 @@ function renderRecords(){
   list.innerHTML=filtered.map(function(r){
     var ri=records.indexOf(r);
     r=migrateRecord(r);
+    var doneMap=getDoneMap();
     var testsHtml=(r.tests||[]).map(function(test){
       var ed=stepsTotal(test.steps);
       var sd=(test.steps&&test.steps.length>0)?test.steps.map(function(s){return s.name+s.days+'天'}).join(' → '):'';
-      var at=test.ages.slice().sort(function(a,b){return a-b}).map(function(age){
-        var info=calcDates(r.castDate,age,test.steps),st=dateStatus(info.testDate);
-        return'<div class="age-tag '+st+'"><div class="label">'+age+'d'+(ed>0?'+'+ed:'')+'</div><div class="date">'+fmt(info.testDate)+'</div></div>';
-      }).join('');
-      return'<div class="test-group"><div class="test-group-title">'+esc(test.type)+(sd?' · '+esc(sd):'')+'</div><div class="record-ages">'+at+'</div></div>';
+      var pendingTags='',doneTags='';
+      test.ages.slice().sort(function(a,b){return a-b}).forEach(function(age){
+        var info=calcDates(r.castDate,age,test.steps);
+        var dk=r.id+'|'+test.type+'|'+age+'|'+fmtFull(info.testDate);
+        var isDone=!!doneMap[dk];
+        var st=isDone?'done':dateStatus(info.testDate);
+        var tag='<div class="age-tag '+st+'"><div class="label">'+age+'d'+(ed>0?'+'+ed:'')+(isDone?' ✓':'')+'</div><div class="date">'+fmt(info.testDate)+'</div></div>';
+        if(isDone)doneTags+=tag;else pendingTags+=tag;
+      });
+      var html='<div class="test-group"><div class="test-group-title">'+esc(test.type)+(sd?' · '+esc(sd):'')+'</div>';
+      if(pendingTags)html+='<div class="record-ages" style="margin-bottom:6px">'+pendingTags+'</div>';
+      if(doneTags)html+='<div style="font-size:11px;color:var(--gray);margin:4px 0 2px">已完成</div><div class="record-ages">'+doneTags+'</div>';
+      if(!pendingTags&&!doneTags)html+='<div class="record-ages"></div>';
+      html+='</div>';
+      return html;
     }).join('');
     return'<div class="record-card"><div class="record-header"><span class="name">'+esc(r.id)+'</span><div style="display:flex;gap:6px"><button type="button" style="width:28px;height:28px;border-radius:14px;border:1px solid var(--blue);background:#fff;color:var(--blue);font-size:14px;cursor:pointer" onclick="openEditR('+ri+')">✎</button><button type="button" style="width:28px;height:28px;border-radius:14px;border:none;background:var(--red);color:#fff;font-size:18px;line-height:26px;text-align:center;cursor:pointer" onclick="delRecord('+ri+')">×</button></div></div><div class="record-meta">浇筑: '+r.castDate+'</div>'+testsHtml+'</div>';
   }).join('');
