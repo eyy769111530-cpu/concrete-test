@@ -69,6 +69,8 @@ button.dash-card{background:var(--card);border-radius:10px;padding:12px 14px;mar
 .age-tag .label{color:var(--gray)}.age-tag .date{font-weight:600;margin-top:1px}
 .age-tag.overdue{background:#ffe0e0}.age-tag.today{background:#fff3cd}.age-tag.soon{background:#e8f4fd}.age-tag.normal{background:#f2f2f7}.age-tag.done{background:#d4edda}
 .empty-msg{text-align:center;color:var(--gray);padding:40px 16px;font-size:15px}
+.tab-filter{padding:6px 14px;border-radius:16px;border:1px solid var(--border);background:#fff;font-size:13px;color:#3a3a3c;cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent}
+.tab-filter.active{background:var(--blue);color:#fff;border-color:var(--blue)}
 .search-bar{margin:16px 16px 0}
 .search-bar input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;font-size:15px;background:var(--card);-webkit-appearance:none}
 .search-bar input:focus{outline:none;border-color:var(--blue)}
@@ -145,6 +147,11 @@ button.dash-card{background:var(--card);border-radius:10px;padding:12px 14px;mar
 
 <div class="page" id="page-records">
   <div class="search-bar"><input type="text" id="searchInput" placeholder="搜索试件编号..." oninput="renderRecords()"></div>
+  <div style="display:flex;gap:8px;margin:10px 16px 0;overflow-x:auto">
+    <button type="button" class="tab-filter active" onclick="setRecordFilter('active',this)">进行中</button>
+    <button type="button" class="tab-filter" onclick="setRecordFilter('done',this)">已完成</button>
+    <button type="button" class="tab-filter" onclick="setRecordFilter('all',this)">全部</button>
+  </div>
   <div class="list" id="recordList"></div>
   <div class="toolbar">
     <button onclick="exportCSV()">导出CSV</button>
@@ -429,9 +436,40 @@ function toggleDone(key){
 }
 
 // ---- 记录列表 ----
+var _recordFilter='active';
+function setRecordFilter(f,btn){
+  _recordFilter=f;
+  document.querySelectorAll('.tab-filter').forEach(function(b){b.classList.remove('active')});
+  btn.classList.add('active');
+  renderRecords();
+}
+function isRecordAllDone(r){
+  var dm=getDoneMap(),allDone=true;
+  r=migrateRecord(r);
+  (r.tests||[]).forEach(function(test){(test.ages||[]).forEach(function(age){
+    var info=calcDates(r.castDate,age,test.steps);
+    var dk=r.id+'|'+test.type+'|'+age+'|'+fmtFull(info.testDate);
+    if(!dm[dk])allDone=false;
+  })});
+  return allDone;
+}
+function hasActiveTasks(r){
+  var dm=getDoneMap();
+  r=migrateRecord(r);
+  var has=false;
+  (r.tests||[]).forEach(function(test){(test.ages||[]).forEach(function(age){
+    var info=calcDates(r.castDate,age,test.steps);
+    var dk=r.id+'|'+test.type+'|'+age+'|'+fmtFull(info.testDate);
+    if(!dm[dk])has=true;
+  })});
+  return has;
+}
 function renderRecords(){
   var records=load(),kw=(document.getElementById('searchInput')?document.getElementById('searchInput').value:'').trim().toLowerCase();
-  var filtered=kw?records.filter(function(r){return r.id.toLowerCase().indexOf(kw)>=0}):records;
+  var filtered=records;
+  if(kw)filtered=filtered.filter(function(r){return r.id.toLowerCase().indexOf(kw)>=0});
+  if(_recordFilter==='active')filtered=filtered.filter(function(r){return hasActiveTasks(r)});
+  else if(_recordFilter==='done')filtered=filtered.filter(function(r){return isRecordAllDone(r)});
   var list=document.getElementById('recordList');
   if(!filtered.length){list.innerHTML='<div class="empty-msg">'+(records.length===0?'暂无记录':'没有匹配结果')+'</div>';return}
   list.innerHTML=filtered.map(function(r){
