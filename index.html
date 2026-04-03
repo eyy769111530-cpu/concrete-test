@@ -55,6 +55,9 @@ body {
   padding: 12px 14px; margin-bottom: 6px;
   box-shadow: 0 1px 2px rgba(0,0,0,0.06);
   display: flex; justify-content: space-between; align-items: center;
+  width: 100%; border: none; text-align: left; cursor: pointer;
+  -webkit-tap-highlight-color: rgba(0,0,0,0.05);
+  font-family: inherit; font-size: inherit; color: inherit;
 }
 .dash-card .left .name { font-size: 15px; font-weight: 600; }
 .dash-card .left .detail { font-size: 12px; color: var(--gray); margin-top: 2px; }
@@ -496,7 +499,7 @@ function dashCard(t,bc,idx) {
   var isDone = isAgeDone(t.recordId, t.age, t.testDate);
   var doneTag = isDone ? '<span class="done-badge">已完成</span>' : '';
   var doneClass = isDone ? ' done' : '';
-  return '<div class="dash-card'+doneClass+'" onclick="onDashClick('+idx+')" style="cursor:pointer;"><div class="left"><div class="name">'+esc(t.recordId)+doneTag+'</div><div class="detail">'+dt+' · '+fmt(t.testDate)+'</div></div><div class="right"><span class="age-badge '+bc+'">'+t.age+'d</span>'+si+'</div></div>';
+  return '<button type="button" class="dash-card'+doneClass+'" onclick="onDashClick('+idx+')"><div class="left"><div class="name">'+esc(t.recordId)+doneTag+'</div><div class="detail">'+dt+' · '+fmt(t.testDate)+'</div></div><div class="right"><span class="age-badge '+bc+'">'+t.age+'d</span>'+si+'</div></button>';
 }
 
 // ---- 记录列表 ----
