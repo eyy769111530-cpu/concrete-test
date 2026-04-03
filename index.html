@@ -490,7 +490,7 @@ function dashCard(t,bc) {
   var isDone = isAgeDone(t.recordId, t.age, t.testDate);
   var doneTag = isDone ? '<span class="done-badge">已完成</span>' : '';
   var doneClass = isDone ? ' done' : '';
-  return '<div class="dash-card'+doneClass+'" onclick="openDetail(\''+esc(t.recordId).replace(/'/g,"\\'")+'\','+t.age+',\''+fmtFull(t.testDate)+'\')"><div class="left"><div class="name">'+esc(t.recordId)+doneTag+'</div><div class="detail">'+dt+' · '+fmt(t.testDate)+'</div></div><div class="right"><span class="age-badge '+bc+'">'+t.age+'d</span>'+si+'</div></div>';
+  return '<div class="dash-card'+doneClass+'" data-rid="'+esc(t.recordId)+'" data-age="'+t.age+'" data-td="'+fmtFull(t.testDate)+'" style="cursor:pointer;"><div class="left"><div class="name">'+esc(t.recordId)+doneTag+'</div><div class="detail">'+dt+' · '+fmt(t.testDate)+'</div></div><div class="right"><span class="age-badge '+bc+'">'+t.age+'d</span>'+si+'</div></div>';
 }
 
 // ---- 记录列表 ----
@@ -626,6 +626,16 @@ function handlePin() {
     renderDashboard();
   });
 }
+
+// ---- 看板点击事件委托 ----
+document.getElementById('dashboardContent').addEventListener('click', function(e) {
+  var card = e.target.closest('.dash-card');
+  if (!card) return;
+  var rid = card.getAttribute('data-rid');
+  var age = parseInt(card.getAttribute('data-age'));
+  var td = card.getAttribute('data-td');
+  if (rid && age && td) openDetail(rid, age, td);
+});
 
 // ---- 初始化 ----
 document.getElementById('inputDate').value=todayStr();
