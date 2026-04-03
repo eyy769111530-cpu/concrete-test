@@ -181,6 +181,41 @@ body {
 .modal-btns .cancel { background: var(--bg); color: #1c1c1e; }
 .modal-btns .save { background: var(--blue); color: #fff; }
 
+.detail-overlay {
+  display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.4); z-index: 200;
+  justify-content: center; align-items: flex-end;
+}
+.detail-overlay.show { display: flex; }
+.detail-content {
+  background: var(--card); border-radius: 16px 16px 0 0;
+  width: 100%; max-height: 70vh; overflow-y: auto;
+  padding: 20px 16px; padding-bottom: max(20px, env(safe-area-inset-bottom));
+}
+.detail-content .d-title { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+.detail-content .d-sub { font-size: 13px; color: var(--gray); margin-bottom: 16px; }
+.detail-content .d-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 0; border-bottom: 1px solid #f0f0f0;
+}
+.detail-content .d-row:last-child { border-bottom: none; }
+.detail-content .d-label { font-size: 14px; color: var(--gray); }
+.detail-content .d-value { font-size: 14px; font-weight: 600; }
+.btn-done {
+  width: 100%; padding: 14px; border-radius: 12px; border: none;
+  font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 16px;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn-done.mark { background: var(--green); color: #fff; }
+.btn-done.undo { background: var(--bg); color: var(--gray); }
+.btn-done-close { width: 100%; padding: 12px; border-radius: 10px; border: none;
+  background: var(--bg); color: #1c1c1e; font-size: 15px; margin-top: 8px; cursor: pointer; }
+.dash-card.done { opacity: 0.5; }
+.dash-card .done-badge {
+  display: inline-block; padding: 2px 6px; border-radius: 6px;
+  font-size: 10px; background: var(--green); color: #fff; margin-left: 4px;
+}
+
 .pin-overlay {
   display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
   background: rgba(0,0,0,0.5); z-index: 300;
@@ -215,6 +250,10 @@ body {
     <button class="tab-btn" onclick="switchTab('add',this)">添加记录</button>
     <button class="tab-btn" onclick="switchTab('records',this)">全部记录</button>
   </div>
+</div>
+
+<div class="detail-overlay" id="detailOverlay" onclick="if(event.target===this)closeDetail()">
+  <div class="detail-content" id="detailContent"></div>
 </div>
 
 <div class="pin-overlay" id="pinOverlay">
@@ -448,7 +487,10 @@ function dashCard(t,bc) {
   if(t.currentStep) si='<div class="step-info">⚙ '+esc(t.currentStep)+'</div>';
   else if(t.steps&&t.steps.length>0&&t.status!=='overdue') si='<div class="step-info">含'+t.steps.length+'步加工</div>';
   var dt=''; if(t.diff===0)dt='今天';else if(t.diff===1)dt='明天';else if(t.diff>1)dt=t.diff+'天后';else dt='逾期'+Math.abs(t.diff)+'天';
-  return '<div class="dash-card"><div class="left"><div class="name">'+esc(t.recordId)+'</div><div class="detail">'+dt+' · '+fmt(t.testDate)+'</div></div><div class="right"><span class="age-badge '+bc+'">'+t.age+'d</span>'+si+'</div></div>';
+  var isDone = isAgeDone(t.recordId, t.age, t.testDate);
+  var doneTag = isDone ? '<span class="done-badge">已完成</span>' : '';
+  var doneClass = isDone ? ' done' : '';
+  return '<div class="dash-card'+doneClass+'" onclick="openDetail(\''+esc(t.recordId).replace(/'/g,"\\'")+'\','+t.age+',\''+fmtFull(t.testDate)+'\')"><div class="left"><div class="name">'+esc(t.recordId)+doneTag+'</div><div class="detail">'+dt+' · '+fmt(t.testDate)+'</div></div><div class="right"><span class="age-badge '+bc+'">'+t.age+'d</span>'+si+'</div></div>';
 }
 
 // ---- 记录列表 ----
@@ -501,6 +543,69 @@ function exportCSV() {
 }
 function clearAll(){if(!confirm('确定清空全部？不可恢复！'))return;localStorage.removeItem(SK);save([]);renderDashboard();renderRecords();}
 
+// ---- 完成标记 ----
+function getDoneKey(recordId, age, testDateStr) { return recordId+'|'+age+'|'+testDateStr; }
+function getDoneMap() { try { return JSON.parse(localStorage.getItem(SK+'_done'))||{}; } catch(e){ return {}; } }
+function saveDoneMap(m) {
+  localStorage.setItem(SK+'_done', JSON.stringify(m));
+  var pin=getPinHash();
+  if(pin) {
+    // 把done状态也存到云端，嵌入records数据
+    var records=load();
+    records.__doneMap = m;
+    cloudSave(pin, records);
+  }
+}
+function isAgeDone(recordId, age, testDate) {
+  var m=getDoneMap(); return !!m[getDoneKey(recordId, age, fmtFull(testDate))];
+}
+function toggleDone(recordId, age, testDateStr) {
+  var m=getDoneMap(), k=getDoneKey(recordId, age, testDateStr);
+  if(m[k]) delete m[k]; else m[k]=Date.now();
+  saveDoneMap(m);
+  renderDashboard();
+  openDetail(recordId, age, testDateStr);
+}
+
+function openDetail(recordId, age, testDateStr) {
+  var records=load(), record=null;
+  for(var i=0;i<records.length;i++){if(records[i].id===recordId){record=records[i];break;}}
+  if(!record) return;
+  var info=calcDates(record.castDate, age, record.steps);
+  var done=isAgeDone(recordId, age, testDateStr);
+  var todayD=new Date(); todayD.setHours(0,0,0,0);
+  var testD=new Date(testDateStr+'T00:00:00');
+  var diff=Math.round((testD-todayD)/86400000);
+  var statusText='';
+  if(done) statusText='<span style="color:var(--green)">已完成</span>';
+  else if(diff<0) statusText='<span style="color:var(--red)">逾期'+Math.abs(diff)+'天</span>';
+  else if(diff===0) statusText='<span style="color:var(--orange)">今天</span>';
+  else statusText='<span style="color:var(--blue)">'+diff+'天后</span>';
+
+  var html='<div class="d-title">'+esc(recordId)+'</div>';
+  html+='<div class="d-sub">'+age+'天龄期试验 · '+statusText+'</div>';
+  html+='<div class="d-row"><span class="d-label">浇筑日期</span><span class="d-value">'+record.castDate+'</span></div>';
+  html+='<div class="d-row"><span class="d-label">龄期到期</span><span class="d-value">'+fmtFull(info.ageDate)+'</span></div>';
+
+  if(record.steps&&record.steps.length>0){
+    info.stepDates.forEach(function(sd){
+      html+='<div class="d-row"><span class="d-label">'+esc(sd.name)+' ('+sd.days+'天)</span><span class="d-value">'+fmtFull(sd.start)+' → '+fmtFull(sd.end)+'</span></div>';
+    });
+  }
+  html+='<div class="d-row"><span class="d-label">实际测试日</span><span class="d-value" style="color:var(--blue);font-size:16px;">'+testDateStr+'</span></div>';
+
+  if(done){
+    html+='<button class="btn-done undo" onclick="toggleDone(\''+esc(recordId).replace(/'/g,"\\'")+'\','+age+',\''+testDateStr+'\')">撤销完成标记</button>';
+  } else {
+    html+='<button class="btn-done mark" onclick="toggleDone(\''+esc(recordId).replace(/'/g,"\\'")+'\','+age+',\''+testDateStr+'\')">标记为已完成</button>';
+  }
+  html+='<button class="btn-done-close" onclick="closeDetail()">关闭</button>';
+
+  document.getElementById('detailContent').innerHTML=html;
+  document.getElementById('detailOverlay').classList.add('show');
+}
+function closeDetail(){ document.getElementById('detailOverlay').classList.remove('show'); }
+
 // ---- PIN处理 ----
 function handlePin() {
   var pin=document.getElementById('pinInput').value.trim();
@@ -531,11 +636,15 @@ if(!existingPin){
 } else {
   cloudLoad(existingPin).then(function(cd){
     var local=load();
-    if(cd&&cd.length>0&&local.length===0){ localStorage.setItem(SK,JSON.stringify(cd)); }
-    else if(cd&&cd.length>0&&local.length>0){
-      var keys={};local.forEach(function(r){keys[r.id+'|'+r.castDate]=true;});
-      var nw=cd.filter(function(r){return !keys[r.id+'|'+r.castDate];});
-      if(nw.length>0){localStorage.setItem(SK,JSON.stringify(local.concat(nw)));}
+    if(cd){
+      // 恢复doneMap
+      if(cd.__doneMap){ localStorage.setItem(SK+'_done',JSON.stringify(cd.__doneMap)); var arr=cd.filter(function(r){return r&&r.id;}); cd=arr; }
+      if(cd.length>0&&local.length===0){ localStorage.setItem(SK,JSON.stringify(cd)); }
+      else if(cd.length>0&&local.length>0){
+        var keys={};local.forEach(function(r){keys[r.id+'|'+r.castDate]=true;});
+        var nw=cd.filter(function(r){return r&&r.id&&!keys[r.id+'|'+r.castDate];});
+        if(nw.length>0){localStorage.setItem(SK,JSON.stringify(local.concat(nw)));}
+      }
     }
     renderDashboard();
   });
