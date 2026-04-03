@@ -6,6 +6,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="混凝土试验">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>混凝土试验记录</title>
 <style>
 :root {
@@ -455,6 +458,8 @@ function addRecord() {
 }
 
 // ---- 看板 ----
+var _dashTasks = []; // 全局任务数组，用于点击
+function onDashClick(i) { var t=_dashTasks[i]; if(t) openDetail(t.recordId, t.age, fmtFull(t.testDate)); }
 function renderDashboard() {
   var records=load(), today=todayStr(), todayD=new Date(today+'T00:00:00'), tasks=[];
   records.forEach(function(r){ r.ages.forEach(function(age){
@@ -475,14 +480,15 @@ function renderDashboard() {
   var html='';
   html+='<div class="dash-section"><div class="dash-title"><span class="dot dot-orange"></span>今天需要测试 ('+todayT.length+')</div>';
   if(!todayT.length) html+='<div class="dash-empty">今天没有需要测试的试件 ✓</div>';
-  else todayT.forEach(function(t){html+=dashCard(t,'badge-orange');});
+  else todayT.forEach(function(t){html+=dashCard(t,'badge-orange',tasks.indexOf(t));});
   html+='</div>';
-  if(upcoming.length){html+='<div class="dash-section"><div class="dash-title"><span class="dot dot-green"></span>未来7天 ('+upcoming.length+')</div>';upcoming.forEach(function(t){html+=dashCard(t,'badge-blue');});html+='</div>';}
-  if(overdue.length){html+='<div class="dash-section"><div class="dash-title"><span class="dot dot-red"></span>已过期未测 ('+overdue.length+')</div>';overdue.forEach(function(t){html+=dashCard(t,'badge-red');});html+='</div>';}
+  if(upcoming.length){html+='<div class="dash-section"><div class="dash-title"><span class="dot dot-green"></span>未来7天 ('+upcoming.length+')</div>';upcoming.forEach(function(t){html+=dashCard(t,'badge-blue',tasks.indexOf(t));});html+='</div>';}
+  if(overdue.length){html+='<div class="dash-section"><div class="dash-title"><span class="dot dot-red"></span>已过期未测 ('+overdue.length+')</div>';overdue.forEach(function(t){html+=dashCard(t,'badge-red',tasks.indexOf(t));});html+='</div>';}
   if(!records.length) html='<div class="dash-empty">暂无记录，请先添加试件</div>';
+  _dashTasks = tasks;
   document.getElementById('dashboardContent').innerHTML=html;
 }
-function dashCard(t,bc) {
+function dashCard(t,bc,idx) {
   var si='';
   if(t.currentStep) si='<div class="step-info">⚙ '+esc(t.currentStep)+'</div>';
   else if(t.steps&&t.steps.length>0&&t.status!=='overdue') si='<div class="step-info">含'+t.steps.length+'步加工</div>';
@@ -490,7 +496,7 @@ function dashCard(t,bc) {
   var isDone = isAgeDone(t.recordId, t.age, t.testDate);
   var doneTag = isDone ? '<span class="done-badge">已完成</span>' : '';
   var doneClass = isDone ? ' done' : '';
-  return '<div class="dash-card'+doneClass+'" data-rid="'+esc(t.recordId)+'" data-age="'+t.age+'" data-td="'+fmtFull(t.testDate)+'" style="cursor:pointer;"><div class="left"><div class="name">'+esc(t.recordId)+doneTag+'</div><div class="detail">'+dt+' · '+fmt(t.testDate)+'</div></div><div class="right"><span class="age-badge '+bc+'">'+t.age+'d</span>'+si+'</div></div>';
+  return '<div class="dash-card'+doneClass+'" onclick="onDashClick('+idx+')" style="cursor:pointer;"><div class="left"><div class="name">'+esc(t.recordId)+doneTag+'</div><div class="detail">'+dt+' · '+fmt(t.testDate)+'</div></div><div class="right"><span class="age-badge '+bc+'">'+t.age+'d</span>'+si+'</div></div>';
 }
 
 // ---- 记录列表 ----
@@ -626,16 +632,6 @@ function handlePin() {
     renderDashboard();
   });
 }
-
-// ---- 看板点击事件委托 ----
-document.getElementById('dashboardContent').addEventListener('click', function(e) {
-  var card = e.target.closest('.dash-card');
-  if (!card) return;
-  var rid = card.getAttribute('data-rid');
-  var age = parseInt(card.getAttribute('data-age'));
-  var td = card.getAttribute('data-td');
-  if (rid && age && td) openDetail(rid, age, td);
-});
 
 // ---- 初始化 ----
 document.getElementById('inputDate').value=todayStr();
