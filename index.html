@@ -350,14 +350,17 @@ function renderDashboard(){
             var s0=new Date(sd.start);s0.setHours(0,0,0,0);var s1=new Date(sd.end);s1.setHours(0,0,0,0);
             if(todayD>=s0&&todayD<s1)cs=sd.name+'中（还剩'+Math.round((s1-todayD)/86400000)+'天）';
           })}
-          tasks.push({recordId:r.id,testType:test.type,age:age,testDate:info.testDate,status:status,diff:diff,steps:test.steps,currentStep:cs});
+          var doneKey=r.id+'|'+test.type+'|'+age+'|'+fmtFull(info.testDate);
+          var isDone=!!getDoneMap()[doneKey];
+          tasks.push({recordId:r.id,testType:test.type,age:age,testDate:info.testDate,status:status,diff:diff,steps:test.steps,currentStep:cs,done:isDone,doneKey:doneKey});
         }
       });
     });
   });
-  var overdue=tasks.filter(function(t){return t.status==='overdue'}).sort(function(a,b){return b.diff-a.diff});
-  var todayT=tasks.filter(function(t){return t.status==='today'});
-  var upcoming=tasks.filter(function(t){return(t.status==='soon'||t.status==='normal')&&t.diff<=7&&t.diff>0}).sort(function(a,b){return a.diff-b.diff});
+  var doneMap=getDoneMap();
+  var overdue=tasks.filter(function(t){return t.status==='overdue'&&!t.done}).sort(function(a,b){return b.diff-a.diff});
+  var todayT=tasks.filter(function(t){return t.status==='today'&&!t.done});
+  var upcoming=tasks.filter(function(t){return(t.status==='soon'||t.status==='normal')&&t.diff<=7&&t.diff>0&&!t.done}).sort(function(a,b){return a.diff-b.diff});
   var html='';
   html+='<div class="dash-section"><div class="dash-title"><span class="dot dot-orange"></span>今天需要测试 ('+todayT.length+')</div>';
   if(!todayT.length)html+='<div class="dash-empty">今天没有需要测试的试件 ✓</div>';
