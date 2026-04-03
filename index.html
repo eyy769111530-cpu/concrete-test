@@ -227,12 +227,13 @@ function cloudSave(pin,data){
 
 // ---- 存储 ----
 function load(){try{return JSON.parse(localStorage.getItem(SK))||[]}catch(e){return[]}}
+function getCloudData(){return{records:load(),doneMap:getDoneMap()}}
 function save(records){
   localStorage.setItem(SK,JSON.stringify(records));
-  var pin=getPinHash();if(pin)cloudSave(pin,records);
+  var pin=getPinHash();if(pin)cloudSave(pin,getCloudData());
 }
 function getDoneMap(){try{return JSON.parse(localStorage.getItem(SK+'_done'))||{}}catch(e){return{}}}
-function saveDoneMap(m){localStorage.setItem(SK+'_done',JSON.stringify(m));var pin=getPinHash();if(pin)cloudSave(pin,load())}
+function saveDoneMap(m){localStorage.setItem(SK+'_done',JSON.stringify(m));var pin=getPinHash();if(pin)cloudSave(pin,getCloudData())}
 
 // ---- 工具 ----
 function addDays(ds,n){var d=new Date(ds+'T00:00:00');d.setDate(d.getDate()+n);return d}
@@ -601,13 +602,20 @@ function handlePin(){
   localStorage.setItem(SK+'_pin',pinHash);
   document.getElementById('pinOverlay').classList.remove('show');
   cloudLoad(pinHash).then(function(cd){
+    var cloudRecords=!cd?[]:Array.isArray(cd)?cd:(cd.records||[]);
+    var cloudDone=!cd?{}:Array.isArray(cd)?{}:(cd.doneMap||{});
     var local=load();
-    if(cd&&cd.length>0){
-      if(local.length===0)localStorage.setItem(SK,JSON.stringify(cd));
+    if(cloudRecords.length>0){
+      if(local.length===0)localStorage.setItem(SK,JSON.stringify(cloudRecords));
       else{var keys={};local.forEach(function(r){keys[r.id+'|'+r.castDate]=true});
-        var nw=cd.filter(function(r){return r&&r.id&&!keys[r.id+'|'+r.castDate]});
-        if(nw.length>0){localStorage.setItem(SK,JSON.stringify(local.concat(nw)));cloudSave(pinHash,local.concat(nw))}}
-    }else if(local.length>0)cloudSave(pinHash,local);
+        var nw=cloudRecords.filter(function(r){return r&&r.id&&!keys[r.id+'|'+r.castDate]});
+        if(nw.length>0){var mg=local.concat(nw);localStorage.setItem(SK,JSON.stringify(mg))}}
+    }else if(local.length>0){cloudSave(pinHash,getCloudData())}
+    // 合并doneMap
+    var localDone=getDoneMap();
+    for(var k in cloudDone){if(!localDone[k])localDone[k]=cloudDone[k]}
+    localStorage.setItem(SK+'_done',JSON.stringify(localDone));
+    if(cloudRecords.length>0||local.length>0)cloudSave(pinHash,getCloudData());
     renderDashboard();
   });
 }
@@ -677,13 +685,22 @@ if(!existingPin){
   renderDashboard();
 }else{
   cloudLoad(existingPin).then(function(cd){
+    if(!cd)return renderDashboard();
+    // 新格式: {records:[], doneMap:{}} 或旧格式: []
+    var cloudRecords=Array.isArray(cd)?cd:(cd.records||[]);
+    var cloudDone=Array.isArray(cd)?{}:(cd.doneMap||{});
+    // 合并records
     var local=load();
-    if(cd&&cd.length>0&&local.length===0)localStorage.setItem(SK,JSON.stringify(cd));
-    else if(cd&&cd.length>0){
+    if(cloudRecords.length>0&&local.length===0)localStorage.setItem(SK,JSON.stringify(cloudRecords));
+    else if(cloudRecords.length>0){
       var keys={};local.forEach(function(r){keys[r.id+'|'+r.castDate]=true});
-      var nw=cd.filter(function(r){return r&&r.id&&!keys[r.id+'|'+r.castDate]});
+      var nw=cloudRecords.filter(function(r){return r&&r.id&&!keys[r.id+'|'+r.castDate]});
       if(nw.length>0)localStorage.setItem(SK,JSON.stringify(local.concat(nw)));
     }
+    // 合并doneMap
+    var localDone=getDoneMap(),merged=false;
+    for(var k in cloudDone){if(!localDone[k]){localDone[k]=cloudDone[k];merged=true}}
+    if(merged)localStorage.setItem(SK+'_done',JSON.stringify(localDone));
     renderDashboard();
   });
 }
