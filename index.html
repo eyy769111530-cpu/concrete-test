@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="混凝土试验">
+<title>混凝土试验记录</title>
+<style>
+:root {
+  --blue: #007aff;
+  --red: #ff3b30;
+  --orange: #ff9500;
+  --green: #34c759;
+  --gray: #8e8e93;
+  --bg: #f2f2f7;
+  --card: #fff;
+  --border: #d1d1d6;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  background: var(--bg);
+  color: #1c1c1e;
+  padding-bottom: 80px;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* 顶栏 */
+.header {
+  background: var(--blue);
+  color: #fff;
+  padding: 50px 16px 14px;
+  position: sticky; top: 0; z-index: 100;
+}
+.header h1 { font-size: 20px; font-weight: 600; text-align: center; }
+.tab-bar {
+  display: flex; margin-top: 12px; gap: 0;
+  background: rgba(255,255,255,0.2); border-radius: 8px; overflow: hidden;
+}
+.tab-btn {
+  flex: 1; padding: 7px 0; text-align: center;
+  font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.8);
+  border: none; background: none; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.tab-btn.active { background: #fff; color: var(--blue); border-radius: 7px; }
+
+/* 看板 */
+.dashboard { margin: 16px; }
+.dash-section { margin-bottom: 16px; }
+.dash-title {
+  font-size: 14px; font-weight: 600; color: var(--gray);
+  margin-bottom: 8px; display: flex; align-items: center; gap: 6px;
+}
+.dash-title .dot {
+  width: 8px; height: 8px; border-radius: 4px; display: inline-block;
+}
+.dot-red { background: var(--red); }
+.dot-orange { background: var(--orange); }
+.dot-green { background: var(--green); }
+.dash-card {
+  background: var(--card); border-radius: 10px;
+  padding: 12px 14px; margin-bottom: 6px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.dash-card .left .name { font-size: 15px; font-weight: 600; }
+.dash-card .left .detail { font-size: 12px; color: var(--gray); margin-top: 2px; }
+.dash-card .right { text-align: right; }
+.dash-card .right .age-badge {
+  display: inline-block; padding: 3px 8px; border-radius: 10px;
+  font-size: 12px; font-weight: 600; color: #fff; margin-left: 4px;
+}
+.badge-red { background: var(--red); }
+.badge-orange { background: var(--orange); }
+.badge-blue { background: var(--blue); }
+.dash-card .right .step-info { font-size: 11px; color: var(--gray); margin-top: 3px; }
+.dash-empty { text-align: center; color: var(--gray); padding: 30px; font-size: 14px; }
+
+/* 表单 */
+.page { display: none; }
+.page.active { display: block; }
+.form-card {
+  background: var(--card); margin: 16px; border-radius: 12px;
+  padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+.form-card label {
+  display: block; font-size: 13px; color: var(--gray);
+  margin-bottom: 4px; margin-top: 14px;
+}
+.form-card label:first-child { margin-top: 0; }
+.form-card input[type="text"],
+.form-card input[type="date"],
+.form-card input[type="number"] {
+  width: 100%; padding: 10px 12px;
+  border: 1px solid var(--border); border-radius: 8px;
+  font-size: 16px; background: #f9f9fb;
+  -webkit-appearance: none;
+}
+.form-card input:focus { outline: none; border-color: var(--blue); background: #fff; }
+
+/* 龄期勾选 */
+.age-checks {
+  display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px;
+}
+.age-check {
+  position: relative;
+}
+.age-check input { display: none; }
+.age-check span {
+  display: inline-block; padding: 8px 16px;
+  border: 1.5px solid var(--border); border-radius: 8px;
+  font-size: 14px; font-weight: 500; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: all 0.15s;
+}
+.age-check input:checked + span {
+  background: var(--blue); color: #fff; border-color: var(--blue);
+}
+
+/* 加工步骤 */
+.steps-area { margin-top: 8px; }
+.step-row {
+  display: flex; gap: 8px; align-items: center; margin-bottom: 8px;
+}
+.step-row input[type="text"] { flex: 1; }
+.step-row input[type="number"] { width: 70px; text-align: center; }
+.step-row .step-del {
+  width: 30px; height: 30px; border-radius: 15px;
+  border: none; background: var(--red); color: #fff;
+  font-size: 18px; line-height: 28px; text-align: center; cursor: pointer;
+  flex-shrink: 0; -webkit-tap-highlight-color: transparent;
+}
+.btn-add-step {
+  padding: 8px 14px; border: 1.5px dashed var(--border);
+  border-radius: 8px; background: none; color: var(--blue);
+  font-size: 13px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.btn-submit {
+  width: 100%; margin-top: 18px; padding: 13px;
+  background: var(--blue); color: #fff; border: none;
+  border-radius: 10px; font-size: 16px; font-weight: 600;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.btn-submit:active { background: #005ecb; }
+
+/* 记录列表 */
+.list { margin: 12px 16px; }
+.record-card {
+  background: var(--card); border-radius: 12px;
+  padding: 14px 16px; margin-bottom: 10px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+.record-header {
+  display: flex; justify-content: space-between; align-items: center;
+}
+.record-header .name { font-size: 16px; font-weight: 600; }
+.record-header .del-btn {
+  width: 28px; height: 28px; border-radius: 14px;
+  border: none; background: var(--red); color: #fff;
+  font-size: 18px; line-height: 26px; text-align: center; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.record-meta { font-size: 12px; color: var(--gray); margin: 4px 0 10px; }
+.record-ages { display: flex; flex-wrap: wrap; gap: 6px; }
+.age-tag {
+  padding: 6px 10px; border-radius: 8px; text-align: center;
+  font-size: 12px; min-width: 70px;
+}
+.age-tag .label { color: var(--gray); }
+.age-tag .date { font-weight: 600; margin-top: 1px; }
+.age-tag.overdue { background: #ffe0e0; }
+.age-tag.today { background: #fff3cd; }
+.age-tag.soon { background: #e8f4fd; }
+.age-tag.normal { background: #f2f2f7; }
+.record-steps {
+  margin-top: 8px; padding-top: 8px; border-top: 1px solid #f0f0f0;
+  font-size: 12px; color: var(--gray);
+}
+
+.empty-msg {
+  text-align: center; color: var(--gray);
+  padding: 40px 16px; font-size: 15px;
+}
+
+/* 搜索 */
+.search-bar {
+  margin: 16px 16px 0;
+}
+.search-bar input {
+  width: 100%; padding: 10px 12px;
+  border: 1px solid var(--border); border-radius: 10px;
+  font-size: 15px; background: var(--card);
+  -webkit-appearance: none;
+}
+.search-bar input:focus { outline: none; border-color: var(--blue); }
+
+/* 底部栏 */
+.toolbar {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: var(--card); border-top: 1px solid #e5e5ea;
+  display: flex; padding: 8px 16px;
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
+  gap: 8px; z-index: 100;
+}
+.toolbar button {
+  flex: 1; padding: 10px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--card);
+  font-size: 13px; color: var(--blue); cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.toolbar button:active { background: var(--bg); }
+.toolbar .danger { color: var(--red); border-color: var(--red); }
+
+/* 编辑弹窗 */
+.modal-overlay {
+  display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.4); z-index: 200;
+  justify-content: center; align-items: flex-end;
+}
+.modal-overlay.show { display: flex; }
+.modal-content {
+  background: var(--card); border-radius: 16px 16px 0 0;
+  width: 100%; max-height: 85vh; overflow-y: auto;
+  padding: 20px 16px; padding-bottom: max(20px, env(safe-area-inset-bottom));
+}
+.modal-title {
+  font-size: 17px; font-weight: 600; text-align: center; margin-bottom: 16px;
+}
+.modal-btns { display: flex; gap: 8px; margin-top: 16px; }
+.modal-btns button {
+  flex: 1; padding: 12px; border-radius: 10px; border: none;
+  font-size: 15px; font-weight: 600; cursor: pointer;
+}
+.modal-btns .cancel { background: var(--bg); color: #1c1c1e; }
+.modal-btns .save { background: var(--blue); color: #fff; }
+
+/* 恢复提示弹窗 */
+.restore-prompt {
+  display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5); z-index: 300;
+  justify-content: center; align-items: center; padding: 24px;
+}
+.restore-prompt.show { display: flex; }
+.restore-box {
+  background: #fff; border-radius: 16px; padding: 24px; width: 100%; max-width: 340px;
+  text-align: center;
+}
+.restore-box .icon { font-size: 48px; margin-bottom: 12px; }
+.restore-box .title { font-size: 17px; font-weight: 600; margin-bottom: 8px; }
+.restore-box .desc { font-size: 13px; color: var(--gray); margin-bottom: 20px; line-height: 1.5; }
+.restore-box button {
+  width: 100%; padding: 12px; border-radius: 10px; border: none;
+  font-size: 15px; font-weight: 600; cursor: pointer; margin-bottom: 8px;
+}
+.restore-box .btn-primary { background: var(--blue); color: #fff; }
+.restore-box .btn-secondary { background: var(--bg); color: #1c1c1e; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>混凝土试验记录</h1>
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('dashboard',this)">今日看板</button>
+    <button class="tab-btn" onclick="switchTab('add',this)">添加记录</button>
+    <button class="tab-btn" onclick="switchTab('records',this)">全部记录</button>
+    <button class="tab-btn" onclick="switchTab('backup',this)">数据管理</button>
+  </div>
+</div>
+
+<!-- ===== 今日看板 ===== -->
+<div class="page active" id="page-dashboard">
+  <div class="dashboard" id="dashboardContent"></div>
+</div>
+
+<!-- ===== 添加记录 ===== -->
+<div class="page" id="page-add">
+  <div class="form-card">
+    <label>试件编号</label>
+    <input type="text" id="inputId" placeholder="例: C30-柱-01">
+
+    <label>浇筑日期</label>
+    <input type="date" id="inputDate">
+
+    <label>选择龄期（天）</label>
+    <div class="age-checks">
+      <label class="age-check"><input type="checkbox" value="3"><span>3</span></label>
+      <label class="age-check"><input type="checkbox" value="7" checked><span>7</span></label>
+      <label class="age-check"><input type="checkbox" value="28" checked><span>28</span></label>
+      <label class="age-check"><input type="checkbox" value="56"><span>56</span></label>
+      <label class="age-check"><input type="checkbox" value="90"><span>90</span></label>
+    </div>
+
+    <label>额外加工步骤（龄期到后依次进行）</label>
+    <div class="steps-area" id="stepsArea"></div>
+    <button class="btn-add-step" onclick="addStepRow('stepsArea')">+ 添加加工步骤</button>
+
+    <button class="btn-submit" onclick="addRecord()">添加记录</button>
+  </div>
+</div>
+
+<!-- ===== 全部记录 ===== -->
+<div class="page" id="page-records">
+  <div class="search-bar">
+    <input type="text" id="searchInput" placeholder="搜索试件编号..." oninput="renderRecords()">
+  </div>
+  <div class="list" id="recordList"></div>
+  <div class="toolbar">
+    <button onclick="backupData()">快速备份</button>
+    <button class="danger" onclick="clearAll()">清空全部</button>
+  </div>
+</div>
+
+<!-- ===== 数据管理 ===== -->
+<div class="page" id="page-backup">
+  <div class="form-card">
+    <div style="text-align:center;margin-bottom:16px;">
+      <div style="font-size:40px;margin-bottom:8px;">&#128190;</div>
+      <div style="font-size:15px;font-weight:600;">数据备份与恢复</div>
+      <div style="font-size:12px;color:var(--gray);margin-top:4px;" id="backupStatus"></div>
+    </div>
+
+    <button class="btn-submit" onclick="exportWithData()" style="background:var(--green);margin-top:0;">生成带数据的网页（推荐）</button>
+    <div style="font-size:12px;color:var(--gray);text-align:center;margin-top:6px;">
+      生成一个包含全部数据的HTML文件，传到新设备直接打开就能用
+    </div>
+
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid #f0f0f0;">
+      <label style="font-size:13px;color:var(--gray);margin-bottom:8px;display:block;">备份数据（JSON文件）</label>
+      <button class="btn-submit" onclick="backupData()" style="background:var(--blue);margin-top:0;">导出JSON备份</button>
+      <div style="font-size:12px;color:var(--gray);text-align:center;margin-top:6px;">
+        建议定期备份到 iCloud Drive，双保险
+      </div>
+    </div>
+
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid #f0f0f0;">
+      <label style="font-size:13px;color:var(--gray);margin-bottom:8px;display:block;">从备份恢复</label>
+      <input type="file" id="restoreFile" accept=".json" style="display:none;" onchange="restoreData(this)">
+      <button class="btn-submit" onclick="document.getElementById('restoreFile').click()" style="background:var(--orange);margin-top:0;">选择备份文件恢复</button>
+      <div style="font-size:12px;color:var(--gray);text-align:center;margin-top:6px;">
+        恢复时可选择：覆盖现有数据 或 合并数据
+      </div>
+    </div>
+
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid #f0f0f0;">
+      <label style="font-size:13px;color:var(--gray);margin-bottom:8px;display:block;">导出CSV表格（用于Excel查看）</label>
+      <button class="btn-submit" onclick="exportData()" style="background:var(--gray);margin-top:0;">导出CSV</button>
+    </div>
+
+    <div style="margin-top:20px;padding:14px;background:#f2f2f7;border-radius:10px;font-size:12px;color:var(--gray);line-height:1.6;">
+      <b style="color:#1c1c1e;">更新版本不丢数据的方法：</b><br>
+      1. 在手机旧版本上点「生成带数据的网页」保存到"文件"App<br>
+      2. Mac上拿到新版本HTML后，AirDrop到手机<br>
+      3. 新版本打开会自动提示恢复，选备份文件即可<br>
+      4. 或直接用「生成带数据的网页」，传到手机打开数据就在里面
+    </div>
+  </div>
+</div>
+
+<!-- ===== 恢复数据提示 ===== -->
+<div class="restore-prompt" id="restorePrompt">
+  <div class="restore-box">
+    <div class="icon">&#128230;</div>
+    <div class="title">检测到没有数据</div>
+    <div class="desc">可能是新版本或新设备。<br>如果之前有备份JSON文件，可以一键恢复全部数据。</div>
+    <input type="file" id="promptRestoreFile" accept=".json" style="display:none;" onchange="promptRestore(this)">
+    <button class="btn-primary" onclick="document.getElementById('promptRestoreFile').click()">选择备份文件恢复</button>
+    <button class="btn-secondary" onclick="dismissRestore()">没有备份，从头开始</button>
+  </div>
+</div>
+
+<!-- ===== 编辑弹窗 ===== -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal-content">
+    <div class="modal-title">编辑记录</div>
+    <input type="hidden" id="editIdx">
+    <label style="font-size:13px;color:var(--gray);display:block;margin-bottom:4px;">试件编号</label>
+    <input type="text" id="editId" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:16px;margin-bottom:12px;">
+    <label style="font-size:13px;color:var(--gray);display:block;margin-bottom:4px;">浇筑日期</label>
+    <input type="date" id="editDate" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:16px;margin-bottom:12px;">
+    <label style="font-size:13px;color:var(--gray);display:block;margin-bottom:4px;">龄期</label>
+    <div class="age-checks" id="editAges" style="margin-bottom:12px;"></div>
+    <label style="font-size:13px;color:var(--gray);display:block;margin-bottom:4px;">加工步骤</label>
+    <div class="steps-area" id="editStepsArea"></div>
+    <button class="btn-add-step" onclick="addStepRow('editStepsArea')">+ 添加加工步骤</button>
+    <div class="modal-btns">
+      <button class="cancel" onclick="closeEdit()">取消</button>
+      <button class="save" onclick="saveEdit()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SK = 'concrete_test_v2';
+const ALL_AGES = [3, 7, 28, 56, 90];
+
+// ---- 双重存储：localStorage + IndexedDB ----
+function load() { try { return JSON.parse(localStorage.getItem(SK)) || []; } catch { return []; } }
+function save(r) {
+  localStorage.setItem(SK, JSON.stringify(r));
+  // 同时写入 IndexedDB 作为备份
+  idbSave(r);
+}
+
+// IndexedDB 备份层（比 localStorage 更持久）
+function idbOpen() {
+  return new Promise(function(resolve, reject) {
+    var req = indexedDB.open('ConcreteTestDB', 1);
+    req.onupgradeneeded = function(e) { e.target.result.createObjectStore('data'); };
+    req.onsuccess = function(e) { resolve(e.target.result); };
+    req.onerror = function() { reject(); };
+  });
+}
+function idbSave(records) {
+  idbOpen().then(function(db) {
+    var tx = db.transaction('data', 'readwrite');
+    tx.objectStore('data').put(JSON.stringify(records), SK);
+  }).catch(function(){});
+}
+function idbLoad() {
+  return idbOpen().then(function(db) {
+    return new Promise(function(resolve) {
+      var tx = db.transaction('data', 'readonly');
+      var req = tx.objectStore('data').get(SK);
+      req.onsuccess = function() {
+        try { resolve(JSON.parse(req.result) || []); }
+        catch(e) { resolve([]); }
+      };
+      req.onerror = function() { resolve([]); };
+    });
+  }).catch(function(){ return []; });
+}
+
+// 启动时自动从 IndexedDB 恢复（如果 localStorage 为空但 IndexedDB 有数据）
+function autoRecover() {
+  var lsData = load();
+  if (lsData.length > 0) return Promise.resolve(false);
+  return idbLoad().then(function(idbData) {
+    if (idbData.length > 0) {
+      localStorage.setItem(SK, JSON.stringify(idbData));
+      return true;
+    }
+    return false;
+  });
+}
+
+// ---- Helpers ----
+function addDays(dateStr, n) {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + n);
+  return d;
+}
+function fmt(d) { return (d.getMonth()+1) + '/' + d.getDate(); }
+function fmtFull(d) {
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function esc(s) { const el = document.createElement('span'); el.textContent = s; return el.innerHTML; }
+
+// 计算加工总天数
+function stepsTotal(steps) {
+  return (steps || []).reduce((s, st) => s + (parseInt(st.days) || 0), 0);
+}
+
+// 计算某龄期的各个关键日期
+function calcDates(castDate, age, steps) {
+  const ageDate = addDays(castDate, age); // 龄期到期日
+  let currentDate = new Date(ageDate);
+  const stepDates = (steps || []).map(st => {
+    const start = new Date(currentDate);
+    const days = parseInt(st.days) || 0;
+    currentDate = addDays(fmtFull(start), days);
+    return { name: st.name, days, start, end: new Date(currentDate) };
+  });
+  return { ageDate, testDate: currentDate, stepDates };
+}
+
+// 日期状态
+function dateStatus(testDate) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const t = new Date(testDate); t.setHours(0,0,0,0);
+  const diff = Math.round((t - today) / 86400000);
+  if (diff < 0) return 'overdue';
+  if (diff === 0) return 'today';
+  if (diff <= 3) return 'soon';
+  return 'normal';
+}
+
+// ---- Tab切换 ----
+function switchTab(name, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (name === 'dashboard') renderDashboard();
+  if (name === 'records') renderRecords();
+  if (name === 'backup') updateBackupStatus();
+}
+
+// ---- 加工步骤UI ----
+function addStepRow(containerId) {
+  const area = document.getElementById(containerId);
+  const row = document.createElement('div');
+  row.className = 'step-row';
+  row.innerHTML =
+    '<input type="text" placeholder="步骤名称（如烘箱干燥）" class="step-name">' +
+    '<input type="number" placeholder="天" class="step-days" min="0">' +
+    '<button class="step-del" onclick="this.parentElement.remove()">×</button>';
+  area.appendChild(row);
+}
+
+function getSteps(containerId) {
+  const rows = document.getElementById(containerId).querySelectorAll('.step-row');
+  const steps = [];
+  rows.forEach(r => {
+    const name = r.querySelector('.step-name').value.trim();
+    const days = r.querySelector('.step-days').value;
+    if (name && days) steps.push({ name, days: parseInt(days) });
+  });
+  return steps;
+}
+
+function renderSteps(containerId, steps) {
+  const area = document.getElementById(containerId);
+  area.innerHTML = '';
+  (steps || []).forEach(st => {
+    const row = document.createElement('div');
+    row.className = 'step-row';
+    row.innerHTML =
+      '<input type="text" value="' + esc(st.name) + '" class="step-name">' +
+      '<input type="number" value="' + st.days + '" class="step-days" min="0">' +
+      '<button class="step-del" onclick="this.parentElement.remove()">×</button>';
+    area.appendChild(row);
+  });
+}
+
+// ---- 添加记录 ----
+function addRecord() {
+  const id = document.getElementById('inputId').value.trim();
+  const date = document.getElementById('inputDate').value;
+  if (!id) { alert('请输入试件编号'); return; }
+  if (!date) { alert('请选择浇筑日期'); return; }
+
+  const ages = [];
+  document.querySelectorAll('#page-add .age-check input:checked').forEach(cb => {
+    ages.push(parseInt(cb.value));
+  });
+  if (ages.length === 0) { alert('请至少选择一个龄期'); return; }
+
+  const steps = getSteps('stepsArea');
+  const records = load();
+  records.unshift({ id, castDate: date, ages, steps, created: Date.now() });
+  save(records);
+  document.getElementById('inputId').value = '';
+  document.getElementById('stepsArea').innerHTML = '';
+  alert('添加成功！');
+  // 跳到看板
+  switchTab('dashboard', document.querySelector('.tab-btn'));
+}
+
+// ---- 看板 ----
+function renderDashboard() {
+  const records = load();
+  const today = todayStr();
+  const todayD = new Date(today + 'T00:00:00');
+
+  // 收集所有任务项
+  const tasks = [];
+  records.forEach((r, ri) => {
+    r.ages.forEach(age => {
+      const info = calcDates(r.castDate, age, r.steps);
+      const testDateStr = fmtFull(info.testDate);
+      const status = dateStatus(info.testDate);
+      const diff = Math.round((info.testDate - todayD) / 86400000);
+
+      // 收集需要在看板上显示的：已过期、今天、未来7天内
+      if (diff >= -30 && diff <= 7) {
+        // 计算当前处于哪个阶段
+        let currentStep = null;
+        if (r.steps && r.steps.length > 0) {
+          info.stepDates.forEach(sd => {
+            const sdStart = new Date(sd.start); sdStart.setHours(0,0,0,0);
+            const sdEnd = new Date(sd.end); sdEnd.setHours(0,0,0,0);
+            if (todayD >= sdStart && todayD < sdEnd) {
+              currentStep = sd.name + '中（还剩' + Math.round((sdEnd - todayD) / 86400000) + '天）';
+            }
+          });
+        }
+
+        tasks.push({
+          recordId: r.id,
+          age,
+          testDate: info.testDate,
+          testDateStr,
+          status,
+          diff,
+          steps: r.steps,
+          currentStep,
+          stepDates: info.stepDates
+        });
+      }
+    });
+  });
+
+  // 分组
+  const overdue = tasks.filter(t => t.status === 'overdue').sort((a,b) => b.diff - a.diff);
+  const todayTasks = tasks.filter(t => t.status === 'today');
+  const upcoming = tasks.filter(t => t.status === 'soon' || t.status === 'normal').filter(t => t.diff <= 7 && t.diff > 0).sort((a,b) => a.diff - b.diff);
+
+  let html = '';
+
+  // 今天
+  html += '<div class="dash-section">';
+  html += '<div class="dash-title"><span class="dot dot-orange"></span>今天需要测试 (' + todayTasks.length + ')</div>';
+  if (todayTasks.length === 0) {
+    html += '<div class="dash-empty">今天没有需要测试的试件 ✓</div>';
+  } else {
+    todayTasks.forEach(t => {
+      html += dashCard(t, 'badge-orange');
+    });
+  }
+  html += '</div>';
+
+  // 即将到期 (7天内)
+  if (upcoming.length > 0) {
+    html += '<div class="dash-section">';
+    html += '<div class="dash-title"><span class="dot dot-green"></span>未来7天 (' + upcoming.length + ')</div>';
+    upcoming.forEach(t => {
+      html += dashCard(t, 'badge-blue');
+    });
+    html += '</div>';
+  }
+
+  // 过期未测
+  if (overdue.length > 0) {
+    html += '<div class="dash-section">';
+    html += '<div class="dash-title"><span class="dot dot-red"></span>已过期未测 (' + overdue.length + ')</div>';
+    overdue.forEach(t => {
+      html += dashCard(t, 'badge-red');
+    });
+    html += '</div>';
+  }
+
+  if (records.length === 0) {
+    html = '<div class="dash-empty">暂无记录，请先添加试件</div>';
+  }
+
+  document.getElementById('dashboardContent').innerHTML = html;
+}
+
+function dashCard(t, badgeClass) {
+  let stepInfo = '';
+  if (t.currentStep) {
+    stepInfo = '<div class="step-info">⚙ ' + esc(t.currentStep) + '</div>';
+  } else if (t.steps && t.steps.length > 0 && t.status !== 'overdue') {
+    stepInfo = '<div class="step-info">含' + t.steps.length + '步加工</div>';
+  }
+
+  let diffText = '';
+  if (t.diff === 0) diffText = '今天';
+  else if (t.diff === 1) diffText = '明天';
+  else if (t.diff > 1) diffText = t.diff + '天后';
+  else diffText = '逾期' + Math.abs(t.diff) + '天';
+
+  return '<div class="dash-card">' +
+    '<div class="left">' +
+      '<div class="name">' + esc(t.recordId) + '</div>' +
+      '<div class="detail">' + diffText + ' · ' + fmt(t.testDate) + '</div>' +
+    '</div>' +
+    '<div class="right">' +
+      '<span class="age-badge ' + badgeClass + '">' + t.age + 'd</span>' +
+      stepInfo +
+    '</div>' +
+  '</div>';
+}
+
+// ---- 记录列表 ----
+function renderRecords() {
+  const records = load();
+  const keyword = (document.getElementById('searchInput')?.value || '').trim().toLowerCase();
+  const filtered = keyword ? records.filter(r => r.id.toLowerCase().includes(keyword)) : records;
+  const list = document.getElementById('recordList');
+
+  if (filtered.length === 0) {
+    list.innerHTML = '<div class="empty-msg">' + (records.length === 0 ? '暂无记录' : '没有匹配结果') + '</div>';
+    return;
+  }
+
+  list.innerHTML = filtered.map((r, fi) => {
+    const realIdx = records.indexOf(r);
+    const extraDays = stepsTotal(r.steps);
+    const stepsDesc = (r.steps && r.steps.length > 0) ?
+      r.steps.map(s => s.name + s.days + '天').join(' → ') : '';
+
+    const ageTags = r.ages.sort((a,b)=>a-b).map(age => {
+      const info = calcDates(r.castDate, age, r.steps);
+      const st = dateStatus(info.testDate);
+      return '<div class="age-tag ' + st + '">' +
+        '<div class="label">' + age + 'd' + (extraDays > 0 ? '+' + extraDays : '') + '</div>' +
+        '<div class="date">' + fmt(info.testDate) + '</div></div>';
+    }).join('');
+
+    return '<div class="record-card">' +
+      '<div class="record-header">' +
+        '<span class="name">' + esc(r.id) + '</span>' +
+        '<div style="display:flex;gap:6px;">' +
+          '<button style="width:28px;height:28px;border-radius:14px;border:1px solid var(--blue);background:#fff;color:var(--blue);font-size:14px;cursor:pointer;" onclick="openEdit(' + realIdx + ')">✎</button>' +
+          '<button class="del-btn" style="width:28px;height:28px;border-radius:14px;border:none;background:var(--red);color:#fff;font-size:18px;line-height:26px;text-align:center;cursor:pointer;" onclick="delRecord(' + realIdx + ')">×</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="record-meta">浇筑: ' + r.castDate +
+        (stepsDesc ? ' · 加工: ' + esc(stepsDesc) : '') + '</div>' +
+      '<div class="record-ages">' + ageTags + '</div>' +
+    '</div>';
+  }).join('');
+}
+
+// ---- 编辑 ----
+function openEdit(idx) {
+  const records = load();
+  const r = records[idx];
+  document.getElementById('editIdx').value = idx;
+  document.getElementById('editId').value = r.id;
+  document.getElementById('editDate').value = r.castDate;
+
+  const agesDiv = document.getElementById('editAges');
+  agesDiv.innerHTML = ALL_AGES.map(a =>
+    '<label class="age-check"><input type="checkbox" value="' + a + '"' +
+    (r.ages.includes(a) ? ' checked' : '') + '><span>' + a + '</span></label>'
+  ).join('');
+
+  renderSteps('editStepsArea', r.steps);
+  document.getElementById('editModal').classList.add('show');
+}
+
+function closeEdit() {
+  document.getElementById('editModal').classList.remove('show');
+}
+
+function saveEdit() {
+  const idx = parseInt(document.getElementById('editIdx').value);
+  const id = document.getElementById('editId').value.trim();
+  const date = document.getElementById('editDate').value;
+  if (!id || !date) { alert('请填写完整'); return; }
+
+  const ages = [];
+  document.querySelectorAll('#editAges input:checked').forEach(cb => {
+    ages.push(parseInt(cb.value));
+  });
+  if (ages.length === 0) { alert('请至少选择一个龄期'); return; }
+
+  const steps = getSteps('editStepsArea');
+  const records = load();
+  records[idx] = { ...records[idx], id, castDate: date, ages, steps };
+  save(records);
+  closeEdit();
+  renderRecords();
+}
+
+// ---- 删除 ----
+function delRecord(idx) {
+  if (!confirm('确定删除这条记录？')) return;
+  const records = load();
+  records.splice(idx, 1);
+  save(records);
+  renderRecords();
+}
+
+// ---- 导出 ----
+function exportData() {
+  const records = load();
+  if (!records.length) { alert('没有数据可导出'); return; }
+  let csv = '试件编号,浇筑日期,龄期,加工步骤,加工天数,实际测试日\n';
+  records.forEach(r => {
+    const extraDays = stepsTotal(r.steps);
+    const stepsDesc = (r.steps || []).map(s => s.name + s.days + '天').join('→');
+    r.ages.forEach(age => {
+      const info = calcDates(r.castDate, age, r.steps);
+      csv += esc(r.id) + ',' + r.castDate + ',' + age + '天,' +
+        (stepsDesc || '无') + ',' + extraDays + '天,' + fmtFull(info.testDate) + '\n';
+    });
+  });
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '混凝土试验记录.csv';
+  a.click();
+}
+
+// ---- 清空 ----
+function clearAll() {
+  if (!confirm('确定清空全部记录？不可恢复！')) return;
+  localStorage.removeItem(SK);
+  renderDashboard();
+  renderRecords();
+}
+
+// ---- 备份 ----
+function backupData() {
+  const records = load();
+  if (!records.length) { alert('没有数据可备份'); return; }
+  const backup = {
+    version: 2,
+    app: 'concrete_test',
+    exportTime: new Date().toISOString(),
+    count: records.length,
+    records: records
+  };
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  const d = new Date();
+  a.download = '混凝土试验备份_' + d.getFullYear() + String(d.getMonth()+1).padStart(2,'0') + String(d.getDate()).padStart(2,'0') + '.json';
+  a.click();
+  localStorage.setItem(SK + '_lastBackup', todayStr());
+  updateBackupStatus();
+}
+
+function restoreData(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      let records;
+      if (data.records && Array.isArray(data.records)) {
+        records = data.records;
+      } else if (Array.isArray(data)) {
+        records = data;
+      } else {
+        alert('备份文件格式不正确'); return;
+      }
+      const existing = load();
+      if (existing.length > 0) {
+        const choice = confirm(
+          '当前已有 ' + existing.length + ' 条记录。\n\n' +
+          '点「确定」= 合并（保留现有 + 导入新的，去重）\n' +
+          '点「取消」= 覆盖（用备份替换全部现有数据）'
+        );
+        if (choice) {
+          // 合并去重：按 id + castDate 判断
+          const existingKeys = new Set(existing.map(r => r.id + '|' + r.castDate));
+          const newRecords = records.filter(r => !existingKeys.has(r.id + '|' + r.castDate));
+          const merged = [...existing, ...newRecords];
+          save(merged);
+          alert('合并完成！新增 ' + newRecords.length + ' 条，共 ' + merged.length + ' 条记录');
+        } else {
+          save(records);
+          alert('已恢复 ' + records.length + ' 条记录（覆盖模式）');
+        }
+      } else {
+        save(records);
+        alert('已恢复 ' + records.length + ' 条记录');
+      }
+      input.value = '';
+      renderDashboard();
+      updateBackupStatus();
+    } catch (err) {
+      alert('文件读取失败，请确认是正确的备份文件');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function updateBackupStatus() {
+  const el = document.getElementById('backupStatus');
+  if (!el) return;
+  const records = load();
+  const lastBackup = localStorage.getItem(SK + '_lastBackup');
+  let msg = '当前共 ' + records.length + ' 条记录';
+  if (lastBackup) {
+    msg += ' · 上次备份: ' + lastBackup;
+    // 超过7天提醒
+    const diff = Math.round((new Date() - new Date(lastBackup + 'T00:00:00')) / 86400000);
+    if (diff > 7) msg += ' (已超过7天，建议备份)';
+  } else if (records.length > 0) {
+    msg += ' · 尚未备份，建议立即备份';
+  }
+  el.textContent = msg;
+}
+
+// ---- 首次打开恢复提示 ----
+function promptRestore(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      let records;
+      if (data.records && Array.isArray(data.records)) records = data.records;
+      else if (Array.isArray(data)) records = data;
+      else { alert('备份文件格式不正确'); return; }
+      save(records);
+      alert('恢复成功！共 ' + records.length + ' 条记录');
+      document.getElementById('restorePrompt').classList.remove('show');
+      renderDashboard();
+    } catch (err) {
+      alert('文件读取失败，请确认是正确的备份文件');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function dismissRestore() {
+  document.getElementById('restorePrompt').classList.remove('show');
+  localStorage.setItem(SK + '_dismissed', '1');
+}
+
+function checkFirstOpen() {
+  const records = load();
+  const dismissed = localStorage.getItem(SK + '_dismissed');
+  if (records.length === 0 && !dismissed) {
+    document.getElementById('restorePrompt').classList.add('show');
+  }
+}
+
+// ---- 生成带数据的HTML ----
+function exportWithData() {
+  const records = load();
+  if (!records.length) { alert('没有数据可导出'); return; }
+  const html = document.documentElement.outerHTML;
+  // 嵌入数据到全局变量，初始化时自动读取
+  const dataScript = '<script>window.__CONCRETE_EMBEDDED_DATA__=' + JSON.stringify(records) + ';<\/script>';
+  // 移除旧的嵌入数据（如果有）
+  let newHtml = '<!DOCTYPE html>\n<html lang="zh-CN">' +
+    html.replace('<!DOCTYPE html>', '')
+        .replace(/<script>window\.__CONCRETE_EMBEDDED_DATA__=.*?<\/script>/s, '')
+        .replace('</body>', dataScript + '\n</body>');
+  const blob = new Blob([newHtml], { type: 'text/html' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '混凝土试验记录.html';
+  a.click();
+}
+
+// ---- 初始化 ----
+document.getElementById('inputDate').value = todayStr();
+
+// 自动恢复流程：IndexedDB → localStorage → 嵌入数据 → 提示恢复
+autoRecover().then(function(recovered) {
+  if (recovered) {
+    console.log('数据已从IndexedDB自动恢复');
+  }
+  // 检查是否有嵌入数据（从"生成带数据网页"导入的）
+  var embedded = window.__CONCRETE_EMBEDDED_DATA__;
+  if (embedded && embedded.length > 0 && load().length === 0) {
+    save(embedded);
+    console.log('数据已从嵌入备份自动恢复');
+  }
+  renderDashboard();
+  updateBackupStatus();
+  // 只有真的什么数据都没有才弹恢复提示
+  if (load().length === 0) {
+    checkFirstOpen();
+  }
+});
+</script>
+</body>
+</html>
