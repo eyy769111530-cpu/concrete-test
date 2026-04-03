@@ -462,7 +462,7 @@ function addRecord() {
 
 // ---- 看板 ----
 var _dashTasks = [];
-function onDashClick(i) { var t=_dashTasks[i]; if(t) openDetail(t.recordId, t.age, fmtFull(t.testDate)); }
+function onDashClick(i) { try { var t=_dashTasks[i]; if(t) openDetail(t.recordId, t.age, fmtFull(t.testDate)); } catch(e) { alert('错误: '+e.message); } }
 function renderDashboard() {
   var records=load(), today=todayStr(), todayD=new Date(today+'T00:00:00'), tasks=[];
   records.forEach(function(r){ r.ages.forEach(function(age){
