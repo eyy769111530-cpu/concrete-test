@@ -101,10 +101,14 @@ button.dash-card{background:var(--card);border-radius:10px;padding:12px 14px;mar
 .stat-box .num{font-size:22px;font-weight:700}
 .stat-box .lbl{font-size:11px;color:var(--gray);margin-top:2px}
 .stat-box.red .num{color:var(--red)}.stat-box.orange .num{color:var(--orange)}.stat-box.blue .num{color:var(--blue)}.stat-box.green .num{color:var(--green)}
-.tpl-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
-.tpl-btn{padding:6px 12px;border-radius:14px;border:1px solid var(--green);background:#fff;color:var(--green);font-size:12px;cursor:pointer;-webkit-tap-highlight-color:transparent}
-.tpl-btn:active{background:var(--green);color:#fff}
-.tpl-btn.del{border-color:var(--red);color:var(--red);font-size:10px;padding:4px 8px}
+.preset-group{margin-bottom:10px}
+.preset-group-header{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--blue);color:#fff;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;-webkit-tap-highlight-color:transparent}
+.preset-group-header input{width:18px;height:18px;margin:0;accent-color:var(--blue)}
+.preset-items{padding:6px 0 0 12px}
+.preset-item{display:flex;align-items:center;gap:8px;padding:8px 10px;background:#fff;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;font-size:13px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.preset-item input{width:16px;height:16px;margin:0;accent-color:var(--blue)}
+.preset-item .pi-name{font-weight:600;flex:1}
+.preset-item .pi-detail{font-size:11px;color:var(--gray)}
 .dash-step-card{background:#fff8e1;border-radius:10px;padding:10px 14px;margin-bottom:6px;font-size:13px;display:flex;justify-content:space-between;align-items:center}
 .dash-step-card .step-name{font-weight:600}.dash-step-card .step-detail{font-size:12px;color:var(--gray)}
 .pin-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:300;justify-content:center;align-items:center;padding:24px}
@@ -150,11 +154,10 @@ button.dash-card{background:var(--card);border-radius:10px;padding:12px 14px;mar
     <input type="text" id="inputId" placeholder="例: C30-柱-01">
     <label>浇筑日期</label>
     <input type="date" id="inputDate">
-    <label>快速添加模板</label>
-    <div class="tpl-bar" id="tplBar"></div>
+    <label>选择测试项目</label>
+    <div id="presetTests"></div>
     <div id="testBlocks"></div>
     <button type="button" class="btn-add-test" onclick="addTestBlock()">+ 自定义测试项目</button>
-    <button type="button" class="btn-add-test" onclick="saveAsTemplate()" style="margin-top:6px;border-color:var(--green);color:var(--green)">保存当前为模板</button>
     <button type="button" class="btn-submit" onclick="addRecord()">添加记录</button>
   </div>
 </div>
@@ -342,14 +345,16 @@ function renderTestBlocks(containerId,tests){
 function addRecord(){
   var id=document.getElementById('inputId').value.trim(),date=document.getElementById('inputDate').value;
   if(!id){alert('请输入试件编号');return}if(!date){alert('请选择浇筑日期');return}
-  var tests=getTestBlocks('testBlocks');
-  if(!tests.length){alert('请至少添加一个测试项目');return}
+  var presetTests=getSelectedPresets();
+  var customTests=getTestBlocks('testBlocks');
+  var tests=presetTests.concat(customTests);
+  if(!tests.length){alert('请至少选择或添加一个测试项目');return}
   var records=load();
   records.unshift({id:id,castDate:date,tests:tests,created:Date.now()});
   save(records);
   document.getElementById('inputId').value='';
   document.getElementById('testBlocks').innerHTML='';
-  addTestBlock();
+  renderPresets();
   alert('添加成功！');
   switchTab('dashboard',document.querySelector('.tab-btn'));
 }
@@ -607,39 +612,65 @@ function handlePin(){
   });
 }
 
-// ---- 模板 ----
-function getTemplates(){try{return JSON.parse(localStorage.getItem(SK+'_tpl'))||[]}catch(e){return[]}}
-function saveTemplates(t){localStorage.setItem(SK+'_tpl',JSON.stringify(t))}
-function renderTplBar(){
-  var tpls=getTemplates(),bar=document.getElementById('tplBar');
-  if(!tpls.length){bar.innerHTML='<span style="font-size:12px;color:var(--gray)">暂无模板，添加测试项目后可保存为模板</span>';return}
-  bar.innerHTML=tpls.map(function(t,i){
-    return'<button type="button" class="tpl-btn" onclick="applyTemplate('+i+')">'+esc(t.name)+'</button><button type="button" class="tpl-btn del" onclick="delTemplate('+i+')">×</button>';
+// ---- 预设测试项目 ----
+var PRESETS=[
+  {group:'力学性能',color:'#007aff',items:[
+    {type:'抗压强度',ages:[7,28,56,90],steps:[]},
+    {type:'抗折强度',ages:[7,28,56,90],steps:[]},
+    {type:'劈裂抗拉强度',ages:[7,28,56,90],steps:[]}
+  ]},
+  {group:'无损检测',color:'#ff9500',items:[
+    {type:'容重',ages:[7,28,56,90],steps:[]},
+    {type:'超声波(UPV)',ages:[7,28,56,90],steps:[]}
+  ]},
+  {group:'流体传输性能',color:'#34c759',items:[
+    {type:'总孔隙率',ages:[7,28,56,90],steps:[{name:'烘箱干燥',days:3},{name:'冷却',days:1},{name:'真空饱水',days:3}]},
+    {type:'透气性',ages:[7,28,56,90],steps:[{name:'烘箱干燥',days:3},{name:'冷却',days:1}]},
+    {type:'吸水率',ages:[7,28,56,90],steps:[{name:'烘箱干燥',days:3},{name:'冷却',days:1}]},
+    {type:'毛细吸水',ages:[90],steps:[]}
+  ]},
+  {group:'尺寸稳定性',color:'#ff3b30',items:[
+    {type:'干燥收缩',ages:[7,28,56,90],steps:[]}
+  ]},
+  {group:'微观分析',color:'#8e8e93',items:[
+    {type:'SEM分析',ages:[28,90],steps:[]}
+  ]}
+];
+
+function renderPresets(){
+  var el=document.getElementById('presetTests');
+  el.innerHTML=PRESETS.map(function(g,gi){
+    var items=g.items.map(function(item,ii){
+      var detail=item.ages.join('/')+'天';
+      if(item.steps.length)detail+=' + '+item.steps.map(function(s){return s.name+s.days+'天'}).join('→');
+      return'<label class="preset-item" onclick="event.stopPropagation()"><input type="checkbox" data-g="'+gi+'" data-i="'+ii+'" onchange="onPresetItemChange('+gi+')"><span class="pi-name">'+esc(item.type)+'</span><span class="pi-detail">'+detail+'</span></label>';
+    }).join('');
+    return'<div class="preset-group"><label class="preset-group-header" onclick="event.stopPropagation()" style="background:'+g.color+'"><input type="checkbox" onchange="toggleGroup('+gi+',this.checked)">'+esc(g.group)+'</label><div class="preset-items">'+items+'</div></div>';
   }).join('');
 }
-function saveAsTemplate(){
-  var tests=getTestBlocks('testBlocks');
-  if(!tests.length){alert('请先添加测试项目');return}
-  var name=prompt('给这个模板起个名字（如"标准强度+吸水性"）：');
-  if(!name)return;
-  var tpls=getTemplates();
-  tpls.push({name:name,tests:tests});
-  saveTemplates(tpls);
-  renderTplBar();
-  alert('模板已保存！');
+function toggleGroup(gi,checked){
+  document.querySelectorAll('input[data-g=\"'+gi+'\"]').forEach(function(cb){cb.checked=checked});
 }
-function applyTemplate(i){
-  var tpls=getTemplates(),t=tpls[i];if(!t)return;
-  renderTestBlocks('testBlocks',t.tests);
+function onPresetItemChange(gi){
+  var all=document.querySelectorAll('input[data-g=\"'+gi+'\"]');
+  var allChecked=true;
+  all.forEach(function(cb){if(!cb.checked)allChecked=false});
+  var groupCb=document.querySelectorAll('.preset-group-header input')[gi];
+  if(groupCb)groupCb.checked=allChecked;
 }
-function delTemplate(i){
-  if(!confirm('删除这个模板？'))return;
-  var tpls=getTemplates();tpls.splice(i,1);saveTemplates(tpls);renderTplBar();
+function getSelectedPresets(){
+  var tests=[];
+  document.querySelectorAll('#presetTests input[data-g]:checked').forEach(function(cb){
+    var g=parseInt(cb.getAttribute('data-g')),i=parseInt(cb.getAttribute('data-i'));
+    var item=PRESETS[g].items[i];
+    tests.push({type:item.type,ages:item.ages.slice(),steps:item.steps.map(function(s){return{name:s.name,days:s.days}})});
+  });
+  return tests;
 }
 
 // ---- 初始化 ----
 document.getElementById('inputDate').value=todayStr();
-renderTplBar(); // 默认添加一个测试项目
+renderPresets(); // 默认添加一个测试项目
 var existingPin=getPinHash();
 if(!existingPin){
   document.getElementById('pinOverlay').classList.add('show');
