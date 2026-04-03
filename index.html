@@ -96,6 +96,17 @@ button.dash-card{background:var(--card);border-radius:10px;padding:12px 14px;mar
 .btn-done.mark{background:var(--green);color:#fff}
 .btn-done.undo{background:var(--bg);color:var(--gray)}
 .btn-close{width:100%;padding:12px;border-radius:10px;border:none;background:var(--bg);color:#1c1c1e;font-size:15px;margin-top:8px;cursor:pointer}
+.stats-bar{display:flex;gap:8px;margin:16px 16px 0}
+.stat-box{flex:1;background:var(--card);border-radius:10px;padding:10px;text-align:center;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.stat-box .num{font-size:22px;font-weight:700}
+.stat-box .lbl{font-size:11px;color:var(--gray);margin-top:2px}
+.stat-box.red .num{color:var(--red)}.stat-box.orange .num{color:var(--orange)}.stat-box.blue .num{color:var(--blue)}.stat-box.green .num{color:var(--green)}
+.tpl-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.tpl-btn{padding:6px 12px;border-radius:14px;border:1px solid var(--green);background:#fff;color:var(--green);font-size:12px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.tpl-btn:active{background:var(--green);color:#fff}
+.tpl-btn.del{border-color:var(--red);color:var(--red);font-size:10px;padding:4px 8px}
+.dash-step-card{background:#fff8e1;border-radius:10px;padding:10px 14px;margin-bottom:6px;font-size:13px;display:flex;justify-content:space-between;align-items:center}
+.dash-step-card .step-name{font-weight:600}.dash-step-card .step-detail{font-size:12px;color:var(--gray)}
 .pin-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:300;justify-content:center;align-items:center;padding:24px}
 .pin-overlay.show{display:flex}
 .pin-box{background:#fff;border-radius:16px;padding:24px;width:100%;max-width:340px;text-align:center}
@@ -139,8 +150,11 @@ button.dash-card{background:var(--card);border-radius:10px;padding:12px 14px;mar
     <input type="text" id="inputId" placeholder="例: C30-柱-01">
     <label>浇筑日期</label>
     <input type="date" id="inputDate">
+    <label>快速添加模板</label>
+    <div class="tpl-bar" id="tplBar"></div>
     <div id="testBlocks"></div>
-    <button type="button" class="btn-add-test" onclick="addTestBlock()">+ 添加测试项目</button>
+    <button type="button" class="btn-add-test" onclick="addTestBlock()">+ 自定义测试项目</button>
+    <button type="button" class="btn-add-test" onclick="saveAsTemplate()" style="margin-top:6px;border-color:var(--green);color:var(--green)">保存当前为模板</button>
     <button type="button" class="btn-submit" onclick="addRecord()">添加记录</button>
   </div>
 </div>
@@ -364,11 +378,51 @@ function renderDashboard(){
       });
     });
   });
+  // 收集加工步骤提醒
+  var stepReminders=[];
+  records.forEach(function(r){
+    r=migrateRecord(r);
+    (r.tests||[]).forEach(function(test){
+      if(!test.steps||!test.steps.length)return;
+      (test.ages||[]).forEach(function(age){
+        var info=calcDates(r.castDate,age,test.steps);
+        var dk=r.id+'|'+test.type+'|'+age+'|'+fmtFull(info.testDate);
+        if(getDoneMap()[dk])return;
+        info.stepDates.forEach(function(sd,si){
+          var s0=new Date(sd.start);s0.setHours(0,0,0,0);
+          var s1=new Date(sd.end);s1.setHours(0,0,0,0);
+          var diffStart=Math.round((s0-todayD)/86400000);
+          var diffEnd=Math.round((s1-todayD)/86400000);
+          if(diffStart===0)stepReminders.push({id:r.id,type:test.type,action:'开始'+sd.name,date:fmtFull(sd.start)});
+          if(diffEnd===0)stepReminders.push({id:r.id,type:test.type,action:sd.name+'结束，'+(si<info.stepDates.length-1?'开始'+info.stepDates[si+1].name:'准备测试'),date:fmtFull(sd.end)});
+          if(diffStart===1)stepReminders.push({id:r.id,type:test.type,action:'明天开始'+sd.name,date:fmtFull(sd.start)});
+        });
+      });
+    });
+  });
+
   var doneMap=getDoneMap();
+  var allTasks=tasks;
   var overdue=tasks.filter(function(t){return t.status==='overdue'&&!t.done}).sort(function(a,b){return b.diff-a.diff});
   var todayT=tasks.filter(function(t){return t.status==='today'&&!t.done});
   var upcoming=tasks.filter(function(t){return(t.status==='soon'||t.status==='normal')&&t.diff<=7&&t.diff>0&&!t.done}).sort(function(a,b){return a.diff-b.diff});
+
+  // 统计
+  var totalPending=0,totalDone=0,totalOverdue=overdue.length;
+  records.forEach(function(r){r=migrateRecord(r);(r.tests||[]).forEach(function(test){(test.ages||[]).forEach(function(age){
+    var info=calcDates(r.castDate,age,test.steps);var dk=r.id+'|'+test.type+'|'+age+'|'+fmtFull(info.testDate);
+    if(doneMap[dk])totalDone++;else totalPending++;
+  })})});
+
   var html='';
+  // 统计栏
+  html+='<div class="stats-bar"><div class="stat-box red"><div class="num">'+totalOverdue+'</div><div class="lbl">过期</div></div><div class="stat-box orange"><div class="num">'+todayT.length+'</div><div class="lbl">今天</div></div><div class="stat-box blue"><div class="num">'+totalPending+'</div><div class="lbl">待测</div></div><div class="stat-box green"><div class="num">'+totalDone+'</div><div class="lbl">已完成</div></div></div>';
+  // 加工步骤提醒
+  if(stepReminders.length){
+    html+='<div class="dash-section"><div class="dash-title"><span class="dot dot-orange"></span>加工操作提醒 ('+stepReminders.length+')</div>';
+    stepReminders.forEach(function(sr){html+='<div class="dash-step-card"><div><span class="step-name">'+esc(sr.id)+'</span> <span class="type-badge">'+esc(sr.type)+'</span><div class="step-detail">'+esc(sr.action)+'</div></div></div>'});
+    html+='</div>';
+  }
   html+='<div class="dash-section"><div class="dash-title"><span class="dot dot-orange"></span>今天需要测试 ('+todayT.length+')</div>';
   if(!todayT.length)html+='<div class="dash-empty">今天没有需要测试的试件 ✓</div>';
   else todayT.forEach(function(t){html+=dashCard(t,'badge-orange',tasks.indexOf(t))});
@@ -553,9 +607,39 @@ function handlePin(){
   });
 }
 
+// ---- 模板 ----
+function getTemplates(){try{return JSON.parse(localStorage.getItem(SK+'_tpl'))||[]}catch(e){return[]}}
+function saveTemplates(t){localStorage.setItem(SK+'_tpl',JSON.stringify(t))}
+function renderTplBar(){
+  var tpls=getTemplates(),bar=document.getElementById('tplBar');
+  if(!tpls.length){bar.innerHTML='<span style="font-size:12px;color:var(--gray)">暂无模板，添加测试项目后可保存为模板</span>';return}
+  bar.innerHTML=tpls.map(function(t,i){
+    return'<button type="button" class="tpl-btn" onclick="applyTemplate('+i+')">'+esc(t.name)+'</button><button type="button" class="tpl-btn del" onclick="delTemplate('+i+')">×</button>';
+  }).join('');
+}
+function saveAsTemplate(){
+  var tests=getTestBlocks('testBlocks');
+  if(!tests.length){alert('请先添加测试项目');return}
+  var name=prompt('给这个模板起个名字（如"标准强度+吸水性"）：');
+  if(!name)return;
+  var tpls=getTemplates();
+  tpls.push({name:name,tests:tests});
+  saveTemplates(tpls);
+  renderTplBar();
+  alert('模板已保存！');
+}
+function applyTemplate(i){
+  var tpls=getTemplates(),t=tpls[i];if(!t)return;
+  renderTestBlocks('testBlocks',t.tests);
+}
+function delTemplate(i){
+  if(!confirm('删除这个模板？'))return;
+  var tpls=getTemplates();tpls.splice(i,1);saveTemplates(tpls);renderTplBar();
+}
+
 // ---- 初始化 ----
 document.getElementById('inputDate').value=todayStr();
-addTestBlock(); // 默认添加一个测试项目
+renderTplBar(); // 默认添加一个测试项目
 var existingPin=getPinHash();
 if(!existingPin){
   document.getElementById('pinOverlay').classList.add('show');
